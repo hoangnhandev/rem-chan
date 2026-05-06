@@ -509,3 +509,15 @@ help:
 	@echo "  Binary: $(BINARY_PATH)"
 	@echo "  Install Prefix: $(INSTALL_PREFIX)"
 	@echo "  Workspace: $(WORKSPACE_DIR)"
+
+# Start Telegram bot containers (rem-chan + violet-chan)
+telegram:
+	docker compose -f docker/docker-compose.yml up rem-chan violet-chan -d
+
+# Stop Telegram bot containers
+telegram-stop:
+	docker compose -f docker/docker-compose.yml stop rem-chan violet-chan
+
+# View Telegram bot logs
+telegram-logs:
+	docker compose -f docker/docker-compose.yml logs -f rem-chan violet-chan

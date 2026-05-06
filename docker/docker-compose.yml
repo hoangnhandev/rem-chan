@@ -62,3 +62,29 @@ services:
       - "18790:18790"
     volumes:
       - ./data:/root/.picoclaw
+
+  # ─────────────────────────────────────────────
+  # rem-chan — Personal Agent (DM only)
+  # ─────────────────────────────────────────────
+  rem-chan:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: docker.io/sipeed/picoclaw:latest
+    container_name: rem-chan
+    restart: unless-stopped
+    volumes:
+      - ./data/rem-chan:/root/.picoclaw
+
+  # ─────────────────────────────────────────────
+  # violet-chan — Group Agent (@mention or /ai /ask)
+  # ─────────────────────────────────────────────
+  violet-chan:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: docker.io/sipeed/picoclaw:latest
+    container_name: violet-chan
+    restart: unless-stopped
+    volumes:
+      - ./data/violet-chan:/root/.picoclaw
