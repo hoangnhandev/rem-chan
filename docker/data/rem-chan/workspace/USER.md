@@ -7,19 +7,17 @@
   serving Japanese clients
 
 ## Tech Stack
-- **Frontend:** Next.js, React
+- **Frontend:** Next.js, React, React Native
 - **Backend:** Laravel/PHP, Node.js
-- **Database:** MySQL, Prisma
-- **Cloud:** AWS (Lambda, EventBridge, S3, RDS, Parameter Store)
+- **Database:** MySQL, Prisma, PostgresNative
+- **Cloud:** AWS, Cloudflare, Suppabase
 - **AI Tools:** Claude Code, PicoClaw, Anthropic API
 - **Scripting:** Python (automation, backend scripts)
 
 ## Projects & Goals
-- 🚀 Building a **personal brand** selling AI/automation products
-  to Vietnamese SMB owners (brand name TBD: Runwise / Flowdone / .dev domain)
-- 🤖 Building a **Telegram news digest bot** with daily Vietnamese-language
-  summaries (RSS: vneconomy, Hacker News, CoinDesk, Reuters)
-- 💼 Business model: one-time website builds + subscription AI assistant
+- **Shopify app** — build and grow apps on the Shopify ecosystem
+- **Mobile app** — mobile applications (React Native)
+- **Web** — websites / web apps (Next.js, React)
 
 ## Daily Routine
 Wakeup - Work → Gym → Side project coding → Go to sleep
