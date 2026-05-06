@@ -1,21 +1,15 @@
 # User
 
-Information about the user goes here.
+## Group Info
 
-## Preferences
+- Group language: Vietnamese
+- Group vibe: Finance, crypto, kinh tế, trending topics
+- Group interest: Theo dõi thị trường, gold, crypto, macro economy
 
-- Communication style: (casual/formal)
-- Timezone: (your timezone)
-- Language: (your preferred language)
+## Common Questions
 
-## Personal Information
-
-- Name: (optional)
-- Location: (optional)
-- Occupation: (optional)
-
-## Learning Goals
-
-- What the user wants to learn from AI
-- Preferred interaction style
-- Areas of interest
+- "Giá vàng hôm nay thế nào?"
+- "Bitcoin đang lên hay xuống?"
+- "Fed vừa quyết định gì?"
+- "Tình hình kinh tế VN tuần này ra sao?"
+- "Có news gì hot hôm nay không?"
