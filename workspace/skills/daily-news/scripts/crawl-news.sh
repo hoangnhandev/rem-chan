@@ -106,7 +106,7 @@ crawl_hackernews() {
 # --- Source: GitHub Trending ---
 crawl_github() {
   local yesterday resp
-  yesterday=$(date -d 'yesterday' +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
+  yesterday=$(date -d '1 day ago' +%Y-%m-%d 2>/dev/null || python3 -c "import datetime; print((datetime.date.today()-datetime.timedelta(1)).isoformat())" 2>/dev/null || date +%Y-%m-%d)
   resp=$(fcurl "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=5") || return
   echo "$resp" | jq -c '.items[]? | {t: .full_name, u: .html_url, d: (.description // "" | .[:150]), sc: .stargazers_count}' 2>/dev/null | process_lines "github" "tech" 0 "GitHub: "
 }
