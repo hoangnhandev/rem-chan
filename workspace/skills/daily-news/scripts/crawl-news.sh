@@ -1,14 +1,16 @@
 #!/bin/bash
 # crawl-news.sh - Daily news crawler for rem-chan
 # Fetches from 6 sources, deduplicates, outputs compact JSON
-set -euo pipefail
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/../data"
 HISTORY_FILE="$DATA_DIR/sent-history.json"
 MAX_ARTICLES=8
 DAYS_KEEP=7
-CURL_OPTS=(-sL --connect-timeout 10 --max-time 30)
+
+# Curl wrapper (avoids bash array issues)
+fcurl() { curl -sL --connect-timeout 10 --max-time 30 "$@"; }
 
 # --- Init ---
 mkdir -p "$DATA_DIR"
@@ -78,10 +80,10 @@ except Exception:
 # --- Source: HackerNews Top ---
 crawl_hackernews() {
   local ids
-  ids=$("${CURL_OPTS[@]}" 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq '.[:5][]') || return
+  ids=$(fcurl 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq '.[:5][]') || return
   for id in $ids; do
     local item title url score
-    item=$("${CURL_OPTS[@]}" "https://hacker-news.firebaseio.com/v0/item/${id}.json") || continue
+    item=$(fcurl "https://hacker-news.firebaseio.com/v0/item/${id}.json") || continue
     title=$(echo "$item" | jq -r '.title') || continue
     url=$(echo "$item" | jq -r '.url // "https://news.ycombinator.com/item?id='"${id}"'"') || continue
     score=$(echo "$item" | jq -r '.score // 0') || continue
@@ -95,7 +97,7 @@ crawl_github() {
   local yesterday
   yesterday=$(date -d 'yesterday' +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
   local resp
-  resp=$("${CURL_OPTS[@]}" "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=5") || return
+  resp=$(fcurl "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=5") || return
   echo "$resp" | jq -c '.items[]? | {title: .full_name, url: .html_url, desc: (.description // "" | .[:150]), score: .stargazers_count}' 2>/dev/null | while IFS= read -r line; do
     local title url desc score
     title=$(echo "$line" | jq -r '.title')
@@ -110,7 +112,7 @@ crawl_github() {
 # --- Source: Claude Code Releases ---
 crawl_claude() {
   local resp
-  resp=$("${CURL_OPTS[@]}" "https://api.github.com/repos/anthropics/claude-code/releases?per_page=3") || return
+  resp=$(fcurl "https://api.github.com/repos/anthropics/claude-code/releases?per_page=3") || return
   echo "$resp" | jq -c '.[]? | {title: .tag_name, url: .html_url, desc: (.body // "" | .[:200])}' 2>/dev/null | while IFS= read -r line; do
     local title url desc
     title=$(echo "$line" | jq -r '.title')
@@ -123,7 +125,7 @@ crawl_claude() {
 # --- Source: CoinDesk RSS ---
 crawl_coindesk() {
   local items
-  items=$("${CURL_OPTS[@]}" 'https://www.coindesk.com/arc/outboundfeeds/rss/' | rss_to_json) || return
+  items=$(fcurl 'https://www.coindesk.com/arc/outboundfeeds/rss/' | rss_to_json) || return
   echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
     local title url desc
     title=$(echo "$line" | jq -r '.title')
@@ -137,7 +139,7 @@ crawl_coindesk() {
 # --- Source: VnEconomy RSS ---
 crawl_vneconomy() {
   local items
-  items=$("${CURL_OPTS[@]}" 'https://vneconomy.vn/rss.rss' | rss_to_json) || return
+  items=$(fcurl 'https://vneconomy.vn/rss.rss' | rss_to_json) || return
   echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
     local title url desc
     title=$(echo "$line" | jq -r '.title')
@@ -151,7 +153,7 @@ crawl_vneconomy() {
 # --- Source: AI News RSS ---
 crawl_ai_news() {
   local items
-  items=$("${CURL_OPTS[@]}" 'https://artificialintelligence-news.com/feed/' | rss_to_json) || return
+  items=$(fcurl 'https://artificialintelligence-news.com/feed/' | rss_to_json) || return
   echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
     local title url desc
     title=$(echo "$line" | jq -r '.title')
