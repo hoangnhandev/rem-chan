@@ -12,7 +12,7 @@ Crawl news from multiple sources, deduplicate, summarize in Vietnamese, send to 
 
 1. Run the crawl script:
 ```bash
-bash /home/withlyvn/rem-chan/docker/data/rem-chan/workspace/skills/daily-news/scripts/crawl-news.sh
+bash /root/.picoclaw/workspace/skills/daily-news/scripts/crawl-news.sh
 ```
 
 2. Script outputs a JSON array (or empty if no new articles):
