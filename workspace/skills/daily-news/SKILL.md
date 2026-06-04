@@ -12,7 +12,7 @@ Crawl tin tức từ nhiều nguồn, lọc trùng, tóm tắt tiếng Việt, g
 
 1. Chạy script crawl:
 ```bash
-bash /root/.picoclaw/workspace/skills/daily-news/scripts/crawl-news.sh
+bash /home/withlyvn/rem-chan/docker/data/rem-chan/workspace/skills/daily-news/scripts/crawl-news.sh
 ```
 
 2. Script output JSON array (hoặc rỗng nếu không có tin mới):
