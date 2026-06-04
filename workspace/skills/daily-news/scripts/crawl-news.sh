@@ -65,13 +65,13 @@ try:
     root = ET.parse(sys.stdin).getroot()
     ch = root.find('channel') or root
     items = []
-    for item in ch.iter('item'):
+    for item in list(ch.iter('item'))[:8]:
         items.append({
             'title': (item.findtext('title') or '').strip(),
             'url': (item.findtext('link') or '').strip(),
             'description': (item.findtext('description') or '')[:200].strip()
         })
-    print(json.dumps(items[:8]))
+    print(json.dumps(items))
 except Exception:
     print('[]')
 " 2>/dev/null
