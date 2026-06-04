@@ -9,26 +9,24 @@ HISTORY_FILE="$DATA_DIR/sent-history.json"
 MAX_ARTICLES=8
 DAYS_KEEP=7
 
-# Curl wrapper (avoids bash array issues)
+# Curl wrapper
 fcurl() { curl -sL --connect-timeout 10 --max-time 30 "$@"; }
 
 # --- Init ---
 mkdir -p "$DATA_DIR"
 [ -f "$HISTORY_FILE" ] || echo '{"articles":[]}' > "$HISTORY_FILE"
 
-# Collect all articles into temp file
+# Articles collected as NDJSON lines in temp file
 TMPFILE=$(mktemp)
-echo "[]" > "$TMPFILE"
+> "$TMPFILE"
 
 # --- Helpers ---
 is_sent() {
-  local url="$1"
-  grep -qF "$url" "$HISTORY_FILE" 2>/dev/null
+  grep -qF "$1" "$HISTORY_FILE" 2>/dev/null
 }
 
 add_to_history() {
-  local url="$1" hash="$2"
-  local now
+  local url="$1" hash="$2" now
   now=$(date +%s)
   local tmp_hist
   tmp_hist=$(mktemp)
@@ -37,15 +35,14 @@ add_to_history() {
     "$HISTORY_FILE" > "$tmp_hist" && mv "$tmp_hist" "$HISTORY_FILE"
 }
 
-add_article() {
+# Add article as NDJSON line (avoids subshell issue)
+emit_article() {
   local title="$1" url="$2" source="$3" category="$4" desc="$5" score="${6:-0}"
-  if is_sent "$url"; then return 0; fi
-  local tmp
-  tmp=$(mktemp)
-  jq --arg t "$title" --arg u "$url" --arg s "$source" \
+  is_sent "$url" && return 0
+  jq -n --arg t "$title" --arg u "$url" --arg s "$source" \
     --arg c "$category" --arg d "$desc" --argjson sc "$score" \
-    '. += [{title: $t, url: $u, source: $s, category: $c, description: $d, score: $sc}]' \
-    "$TMPFILE" > "$tmp" && mv "$tmp" "$TMPFILE"
+    '{title: $t, url: $u, source: $s, category: $c, description: $d, score: $sc}' \
+    >> "$TMPFILE"
 }
 
 cleanup_history() {
@@ -57,24 +54,38 @@ cleanup_history() {
     "$HISTORY_FILE" > "$tmp" && mv "$tmp" "$HISTORY_FILE"
 }
 
-# Parse RSS XML to JSON via python3
-rss_to_json() {
+# Parse RSS XML to NDJSON via python3
+rss_to_ndjson() {
   python3 -c "
 import sys, json, xml.etree.ElementTree as ET
 try:
     root = ET.parse(sys.stdin).getroot()
     ch = root.find('channel') or root
-    items = []
     for item in list(ch.iter('item'))[:8]:
-        items.append({
+        print(json.dumps({
             'title': (item.findtext('title') or '').strip(),
             'url': (item.findtext('link') or '').strip(),
             'description': (item.findtext('description') or '')[:200].strip()
-        })
-    print(json.dumps(items))
+        }))
 except Exception:
-    print('[]')
+    pass
 " 2>/dev/null
+}
+
+# Process JSON lines from a source (avoids while-read subshell)
+process_lines() {
+  local source="$1" category="$2" score="${3:-50}" prefix="${4:-}"
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    local title url desc
+    title=$(echo "$line" | jq -r '.title // .t // empty')
+    url=$(echo "$line" | jq -r '.url // .u // empty')
+    desc=$(echo "$line" | jq -r '(.description // .desc // .d // "")')
+    score_val=$(echo "$line" | jq -r '(.score // .sc // '"$score"')')
+    [ -z "$title" ] || [ "$title" = "null" ] && continue
+    [ -z "$url" ] || [ "$url" = "null" ] && continue
+    emit_article "${prefix}${title}" "$url" "$source" "$category" "$desc" "$score_val"
+  done
 }
 
 # --- Source: HackerNews Top ---
@@ -84,84 +95,42 @@ crawl_hackernews() {
   for id in $ids; do
     local item title url score
     item=$(fcurl "https://hacker-news.firebaseio.com/v0/item/${id}.json") || continue
-    title=$(echo "$item" | jq -r '.title') || continue
-    url=$(echo "$item" | jq -r '.url // "https://news.ycombinator.com/item?id='"${id}"'"') || continue
-    score=$(echo "$item" | jq -r '.score // 0') || continue
+    title=$(echo "$item" | jq -r '.title')
+    url=$(echo "$item" | jq -r '.url // "https://news.ycombinator.com/item?id='"${id}"'"')
+    score=$(echo "$item" | jq -r '.score // 0')
     [ "$title" = "null" ] && continue
-    add_article "$title" "$url" "hackernews" "tech" "" "$score"
+    emit_article "$title" "$url" "hackernews" "tech" "" "$score"
   done
 }
 
 # --- Source: GitHub Trending ---
 crawl_github() {
-  local yesterday
+  local yesterday resp
   yesterday=$(date -d 'yesterday' +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
-  local resp
   resp=$(fcurl "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=5") || return
-  echo "$resp" | jq -c '.items[]? | {title: .full_name, url: .html_url, desc: (.description // "" | .[:150]), score: .stargazers_count}' 2>/dev/null | while IFS= read -r line; do
-    local title url desc score
-    title=$(echo "$line" | jq -r '.title')
-    url=$(echo "$line" | jq -r '.url')
-    desc=$(echo "$line" | jq -r '.desc')
-    score=$(echo "$line" | jq -r '.score')
-    [ -z "$title" ] && continue
-    add_article "GitHub: $title" "$url" "github" "tech" "$desc" "$score"
-  done
+  echo "$resp" | jq -c '.items[]? | {t: .full_name, u: .html_url, d: (.description // "" | .[:150]), sc: .stargazers_count}' 2>/dev/null | process_lines "github" "tech" 0 "GitHub: "
 }
 
 # --- Source: Claude Code Releases ---
 crawl_claude() {
   local resp
   resp=$(fcurl "https://api.github.com/repos/anthropics/claude-code/releases?per_page=3") || return
-  echo "$resp" | jq -c '.[]? | {title: .tag_name, url: .html_url, desc: (.body // "" | .[:200])}' 2>/dev/null | while IFS= read -r line; do
-    local title url desc
-    title=$(echo "$line" | jq -r '.title')
-    url=$(echo "$line" | jq -r '.url')
-    desc=$(echo "$line" | jq -r '.desc')
-    add_article "Claude Code $title" "$url" "claude-code" "tech" "$desc" 100
-  done
+  echo "$resp" | jq -c '.[]? | {t: .tag_name, u: .html_url, d: (.body // "" | .[:200])}' 2>/dev/null | process_lines "claude-code" "tech" 100 "Claude Code "
 }
 
 # --- Source: CoinDesk RSS ---
 crawl_coindesk() {
-  local items
-  items=$(fcurl 'https://www.coindesk.com/arc/outboundfeeds/rss/' | rss_to_json) || return
-  echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
-    local title url desc
-    title=$(echo "$line" | jq -r '.title')
-    url=$(echo "$line" | jq -r '.url')
-    desc=$(echo "$line" | jq -r '.description')
-    [ -z "$title" ] && continue
-    add_article "$title" "$url" "coindesk" "crypto" "$desc" 50
-  done
+  fcurl 'https://www.coindesk.com/arc/outboundfeeds/rss/' | rss_to_ndjson | process_lines "coindesk" "crypto" 50
 }
 
 # --- Source: VnEconomy RSS ---
 crawl_vneconomy() {
-  local items
-  items=$(fcurl 'https://vneconomy.vn/rss.rss' | rss_to_json) || return
-  echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
-    local title url desc
-    title=$(echo "$line" | jq -r '.title')
-    url=$(echo "$line" | jq -r '.url')
-    desc=$(echo "$line" | jq -r '.description')
-    [ -z "$title" ] && continue
-    add_article "$title" "$url" "vneconomy" "economy" "$desc" 50
-  done
+  fcurl 'https://vneconomy.vn/rss.rss' | rss_to_ndjson | process_lines "vneconomy" "economy" 50
 }
 
 # --- Source: AI News RSS ---
 crawl_ai_news() {
-  local items
-  items=$(fcurl 'https://artificialintelligence-news.com/feed/' | rss_to_json) || return
-  echo "$items" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
-    local title url desc
-    title=$(echo "$line" | jq -r '.title')
-    url=$(echo "$line" | jq -r '.url')
-    desc=$(echo "$line" | jq -r '.description')
-    [ -z "$title" ] && continue
-    add_article "$title" "$url" "ai-news" "ai" "$desc" 50
-  done
+  fcurl 'https://artificialintelligence-news.com/feed/' | rss_to_ndjson | process_lines "ai-news" "ai" 50
 }
 
 # --- Main ---
@@ -174,17 +143,16 @@ crawl_coindesk
 crawl_vneconomy
 crawl_ai_news
 
-# Sort by score desc, limit, output
-result=$(jq 'sort_by(-.score) | .[:'"$MAX_ARTICLES"']' "$TMPFILE")
+# Convert NDJSON → sorted JSON array, limited
+result=$(jq -s 'sort_by(-.score) | .[:'"$MAX_ARTICLES"']' "$TMPFILE" 2>/dev/null || echo '[]')
 
 # Update history with sent articles
-echo "$result" | jq -c '.[]?' | while IFS= read -r line; do
+echo "$result" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
   url=$(echo "$line" | jq -r '.url')
   title=$(echo "$line" | jq -r '.title')
   hash=$(echo "$title" | md5sum | cut -d' ' -f1)
   add_to_history "$url" "$hash"
 done
 
-# Output
 echo "$result"
 rm -f "$TMPFILE"
