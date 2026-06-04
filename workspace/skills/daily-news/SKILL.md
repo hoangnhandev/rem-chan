@@ -1,59 +1,59 @@
 ---
 name: daily-news
-description: Crawl tin tức hằng ngày từ tech, crypto, kinh tế, AI. Tóm tắt tiếng Việt và gửi qua Telegram.
+description: Daily news crawler for tech, crypto, economy, AI. Summarize in Vietnamese, send via Telegram.
 metadata: {"nanobot":{"emoji":"📰","requires":{"bins":["curl","jq"]}}}
 ---
 
 # Daily News
 
-Crawl tin tức từ nhiều nguồn, lọc trùng, tóm tắt tiếng Việt, gửi cho user.
+Crawl news from multiple sources, deduplicate, summarize in Vietnamese, send to user.
 
-## Cách dùng
+## How to Use
 
-1. Chạy script crawl:
+1. Run the crawl script:
 ```bash
 bash /home/withlyvn/rem-chan/docker/data/rem-chan/workspace/skills/daily-news/scripts/crawl-news.sh
 ```
 
-2. Script output JSON array (hoặc rỗng nếu không có tin mới):
+2. Script outputs a JSON array (or empty if no new articles):
 ```json
 [{"title":"...","url":"...","source":"hackernews","category":"tech","description":"..."}]
 ```
 
-3. Nếu output rỗng → KHÔNG gửi gì, kết thúc ngay.
+3. If output is empty → do NOT send anything, stop immediately.
 
-4. Nếu có articles → gửi **MỖI TIN = 1 TIN NHẮN RIÊNG** qua Telegram.
+4. If articles exist → send **EACH ARTICLE AS A SEPARATE MESSAGE** via Telegram using the `message` tool.
 
-## Format: Mỗi tin = 1 tin nhắn
+## Format: 1 Article = 1 Message
 
-Gửi đầu tiên 1 tin nhắn mở đầu, sau đó gửi từng tin riêng biệt.
+First, send 1 opening message. Then send each article as its own message.
 
-**Tin nhắn mở đầu (1 lần):**
+**Opening message (once):**
 ```
 📰 BẢN TIN {SÁNG/TRƯA/TỐI} - {DD/MM/YYYY}
 Có {N} tin mới cho Nyan nè~
 ```
 
-**Mỗi tin nhắn tin tức:**
+**Each article message:**
 ```
-{emoji category} {Tiêu đề gốc hoặc tóm tắt tiếng Việt}
+{category emoji} {Title in Vietnamese}
 
-📝 {Nội dung tóm tắt chi tiết: 2-3 câu, giải thích rõ tin này nói về cái gì, dịch sang tiếng Việt}
+📝 {Summary: 2-3 sentences explaining what the article is about, in natural Vietnamese}
 
-💬 {Opinion/đánh giá cá nhân của rem-chan: 1-2 câu, tự nhiên, có cá tính, có thể hài hước hoặc sắc sảo}
+💬 {Your personal opinion: 1-2 sentences, natural tone, show personality, can be humorous or sharp}
 
-🔗 {url gốc}
+🔗 {original URL}
 ```
 
 Category emoji: 🔴 Công nghệ, ₿ Crypto, 📊 Kinh tế, 🤖 AI
 
-## Quy tắc
+## Rules
 
-- **1 TIN = 1 TIN NHẮN** — dùng tool message để gửi từng tin riêng, KHÔNG gộp tất cả vào 1 tin nhắn
-- Tóm tắt: 2-3 câu/tin, giải thích rõ ràng nội dung, tiếng Việt tự nhiên
-- Opinion: 1-2 câu, phong cách riêng của rem-chan, tự nhiên có cá tính
-- Ưu tiên tin quan trọng gửi trước
-- Nếu dưới 3 tin → thêm ghi chú "Hôm nay hơi ít tin 🥱" trong tin mở đầu
-- KHÔNG bịa link, giữ nguyên URL gốc từ script
-- KHÔNG gửi nếu script output rỗng
-- Xác định SÁNG (7h), TRƯA (11h45), TỐI (21h) dựa trên giờ hiện tại
+- **1 ARTICLE = 1 MESSAGE** — use the `message` tool for each article separately, do NOT combine into one big message
+- Summary: 2-3 sentences per article, clear and informative, natural Vietnamese
+- Opinion: 1-2 sentences, rem-chan's personal take, show personality and character
+- Send important articles first
+- If fewer than 3 articles → add note "Hôm nay hơi ít tin 🥱" in opening message
+- Do NOT fabricate links, keep original URLs from script output
+- Do NOT send if script output is empty
+- Determine time slot: SÁNG (7h), TRƯA (11h45), TỐI (21h) based on current time
