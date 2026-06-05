@@ -6,8 +6,8 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/../data"
 HISTORY_FILE="$DATA_DIR/sent-history.json"
-MAX_PER_CATEGORY=5
-MAX_ARTICLES=20
+MAX_PER_CATEGORY=3
+MAX_ARTICLES=12
 DAYS_KEEP=7
 
 # Curl wrapper
