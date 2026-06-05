@@ -92,7 +92,7 @@ process_lines() {
 # --- Source: HackerNews Top ---
 crawl_hackernews() {
   local ids
-  ids=$(fcurl 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq '.[:5][]') || return
+  ids=$(fcurl 'https://hacker-news.firebaseio.com/v0/topstories.json' | jq '.[:15][]') || return
   for id in $ids; do
     local item title url score
     item=$(fcurl "https://hacker-news.firebaseio.com/v0/item/${id}.json") || continue
