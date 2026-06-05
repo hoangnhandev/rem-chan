@@ -6,7 +6,8 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/../data"
 HISTORY_FILE="$DATA_DIR/sent-history.json"
-MAX_ARTICLES=8
+MAX_PER_CATEGORY=5
+MAX_ARTICLES=20
 DAYS_KEEP=7
 
 # Curl wrapper
@@ -143,8 +144,11 @@ crawl_coindesk
 crawl_vneconomy
 crawl_ai_news
 
-# Convert NDJSON → sorted JSON array, limited
-result=$(jq -s 'sort_by(-.score) | .[:'"$MAX_ARTICLES"']' "$TMPFILE" 2>/dev/null || echo '[]')
+# Convert NDJSON → top N per category, then sort by score
+result=$(jq -s --argjson mpc "$MAX_PER_CATEGORY" --argjson max "$MAX_ARTICLES" '
+  group_by(.category) | map(sort_by(-.score)[:$mpc]) | add // []
+  | sort_by(-.score) | .[:$max]
+' "$TMPFILE" 2>/dev/null || echo '[]')
 
 # Update history with sent articles
 echo "$result" | jq -c '.[]?' 2>/dev/null | while IFS= read -r line; do
