@@ -6,8 +6,8 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/../data"
 HISTORY_FILE="$DATA_DIR/sent-history.json"
-MAX_PER_CATEGORY=3
-MAX_ARTICLES=12
+MAX_PER_SOURCE=5
+MAX_ARTICLES=30
 DAYS_KEEP=7
 
 # Curl wrapper
@@ -62,7 +62,7 @@ import sys, json, xml.etree.ElementTree as ET
 try:
     root = ET.parse(sys.stdin).getroot()
     ch = root.find('channel') or root
-    for item in list(ch.iter('item'))[:8]:
+    for item in list(ch.iter('item'))[:10]:
         print(json.dumps({
             'title': (item.findtext('title') or '').strip(),
             'url': (item.findtext('link') or '').strip(),
@@ -108,14 +108,14 @@ crawl_hackernews() {
 crawl_github() {
   local yesterday resp
   yesterday=$(date -d '1 day ago' +%Y-%m-%d 2>/dev/null || python3 -c "import datetime; print((datetime.date.today()-datetime.timedelta(1)).isoformat())" 2>/dev/null || date +%Y-%m-%d)
-  resp=$(fcurl "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=5") || return
+  resp=$(fcurl "https://api.github.com/search/repositories?q=created:>$yesterday&sort=stars&order=desc&per_page=10") || return
   echo "$resp" | jq -c '.items[]? | {t: .full_name, u: .html_url, d: (.description // "" | .[:150]), sc: .stargazers_count}' 2>/dev/null | process_lines "github" "tech" 0 "GitHub: "
 }
 
 # --- Source: Claude Code Releases ---
 crawl_claude() {
   local resp
-  resp=$(fcurl "https://api.github.com/repos/anthropics/claude-code/releases?per_page=3") || return
+  resp=$(fcurl "https://api.github.com/repos/anthropics/claude-code/releases?per_page=5") || return
   echo "$resp" | jq -c '.[]? | {t: .tag_name, u: .html_url, d: (.body // "" | .[:200])}' 2>/dev/null | process_lines "claude-code" "tech" 100 "Claude Code "
 }
 
@@ -144,9 +144,9 @@ crawl_coindesk
 crawl_vneconomy
 crawl_ai_news
 
-# Convert NDJSON → top N per category, then sort by score
-result=$(jq -s --argjson mpc "$MAX_PER_CATEGORY" --argjson max "$MAX_ARTICLES" '
-  group_by(.category) | map(sort_by(-.score)[:$mpc]) | add // []
+# Top N per source, then sort by score, limit total
+result=$(jq -s --argjson mps "$MAX_PER_SOURCE" --argjson max "$MAX_ARTICLES" '
+  group_by(.source) | map(sort_by(-.score)[:$mps]) | add // []
   | sort_by(-.score) | .[:$max]
 ' "$TMPFILE" 2>/dev/null || echo '[]')
 
