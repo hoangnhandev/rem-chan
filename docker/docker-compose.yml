@@ -73,8 +73,10 @@ services:
     image: docker.io/sipeed/picoclaw:latest
     container_name: rem-chan
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/root/.picoclaw/entrypoint-wrapper.sh"]
     volumes:
       - ./data/rem-chan:/root/.picoclaw
+      - ./data/rem-chan/entrypoint-wrapper.sh:/root/.picoclaw/entrypoint-wrapper.sh:ro
 
   # ─────────────────────────────────────────────
   # violet-chan — Group Agent (@mention or /ai /ask)
